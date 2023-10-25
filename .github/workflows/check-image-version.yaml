@@ -3,7 +3,7 @@ name: Check image version
 on:
   workflow_call:
     inputs:
-      branch:
+      mainRef:
         required: true
         type: string
     secrets:
@@ -23,7 +23,7 @@ jobs:
           git fetch origin
           MIDSTREAM_REF=$(git branch -r | grep 'origin/midstream-v' | awk -F "/" '{print $2}' | tr '\n' ',')
           echo "MIDSTREAM_REF=$MIDSTREAM_REF" >> $GITHUB_ENV
-          git checkout -B Update-image-version origin/${{ inputs.branch }}
+          git checkout -B Update-image-version origin/${{ inputs.mainRef }}
 
       - name: Check and update images
         working-directory: redhat/overlays
@@ -43,7 +43,7 @@ jobs:
         if: ${{ env.IMAGE_UPDATED == 'true' }}
         run: |
           git push -f origin Update-image-version
-          git checkout ${{ inputs.branch }}
+          git checkout ${{ inputs.mainRef }}
           COMMIT_SHA=$(git log Update-image-version -n 2 --pretty=format:"%H" | tr '\n' ' ')
           IFS=',' read -ra MID_STR <<< "$MIDSTREAM_REF"
           for midstream in "${MID_STR[@]}"; do
@@ -65,7 +65,7 @@ jobs:
       - name: Create pull request
         if: ${{ env.NUM_OPEN_PRS == 0 && env.IMAGE_UPDATED == 'true' }}
         run: |
-          gh pr create --base ${{ inputs.branch }} --head Update-image-version --title ":robot: Update image version in Dockerfiles" --body "This is an automated PR, which updates the Dockerfile versions to their latest versions."
+          gh pr create --base ${{ inputs.mainRef }} --head Update-image-version --title ":robot: Update image version in Dockerfiles" --body "This is an automated PR, which updates the Dockerfile versions to their latest versions."
           IFS=',' read -ra MID_STR <<< "$MIDSTREAM_REF"
           for midstream in "${MID_STR[@]}"; do
               gh pr create --base $midstream --head Update-image-version-$midstream --title ":robot: [$midstream] Update image version in Dockerfiles" --body "This is an automated PR, which updates the Dockerfile versions to their latest versions."
