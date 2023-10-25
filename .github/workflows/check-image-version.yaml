@@ -39,6 +39,21 @@ jobs:
               fi
           done
 
+      - name: Push changes
+        if: ${{ env.IMAGE_UPDATED == 'true' }}
+        run: |
+          git push -f origin Update-image-version
+          git checkout ${{ inputs.branch }}
+          COMMIT_SHA=$(git log Update-image-version -n 2 --pretty=format:"%H" | tr '\n' ' ')
+          IFS=',' read -ra MID_STR <<< "$MIDSTREAM_REF"
+          for midstream in "${MID_STR[@]}"; do
+            git checkout -B Update-image-version-$midstream origin/$midstream
+            git cherry-pick $COMMIT_SHA
+            git push -f origin Update-image-version-$midstream
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.token }}
+
       - name: Check for existing pull request
         if: ${{ env.IMAGE_UPDATED == 'true' }}
         run: |
@@ -50,16 +65,9 @@ jobs:
       - name: Create pull request
         if: ${{ env.NUM_OPEN_PRS == 0 && env.IMAGE_UPDATED == 'true' }}
         run: |
-          git push -f origin Update-image-version
           gh pr create --base ${{ inputs.branch }} --head Update-image-version --title ":robot: Update image version in Dockerfiles" --body "This is an automated PR, which updates the Dockerfile versions to their latest versions."
-          git checkout ${{ inputs.branch }}
-
-          COMMIT_SHA=$(git log Update-image-version -n 2 --pretty=format:"%H" | tr '\n' ' ')
           IFS=',' read -ra MID_STR <<< "$MIDSTREAM_REF"
           for midstream in "${MID_STR[@]}"; do
-              git checkout -B Update-image-version-$midstream origin/$midstream
-              git cherry-pick $COMMIT_SHA
-              git push -f origin Update-image-version-$midstream
               gh pr create --base $midstream --head Update-image-version-$midstream --title ":robot: [$midstream] Update image version in Dockerfiles" --body "This is an automated PR, which updates the Dockerfile versions to their latest versions."
           done
         env:
