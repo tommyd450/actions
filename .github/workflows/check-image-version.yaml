@@ -7,7 +7,7 @@ on:
         required: true
         type: string
     secrets:
-      GITHUB_TOKEN:
+      token:
         required: true
 
 jobs:
@@ -45,7 +45,7 @@ jobs:
           openPRs="$(gh pr list --state open -H Update-image-version --json number | jq -r '.[].number' | wc -l)"
           echo 'NUM_OPEN_PRS='$openPRs >> $GITHUB_ENV
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.token }}
 
       - name: Create pull request
         if: ${{ env.NUM_OPEN_PRS == 0 && env.IMAGE_UPDATED == 'true' }}
@@ -63,4 +63,4 @@ jobs:
               gh pr create --base $midstream --head Update-image-version-$midstream --title ":robot: [$midstream] Update image version in Dockerfiles" --body "This is an automated PR, which updates the Dockerfile versions to their latest versions."
           done
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.token }}
