@@ -1,0 +1,74 @@
+name: Check image version
+
+on:
+  workflow_call:
+    inputs:
+      mainRef:
+        required: true
+        type: string
+    secrets:
+      token:
+        required: true
+
+jobs:
+  check-image-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Configure git
+        run: |
+          git config --global user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+          git config --global user.name "${GITHUB_ACTOR}"
+          
+          git fetch origin
+          MIDSTREAM_REF=$(git branch -r | grep 'origin/midstream-v' | awk -F "/" '{print $2}' | tr '\n' ',')
+          echo "MIDSTREAM_REF=$MIDSTREAM_REF" >> $GITHUB_ENV
+          git checkout -B Update-image-version origin/${{ inputs.mainRef }}
+
+      - name: Check and update images
+        working-directory: redhat/overlays
+        run: |
+          for image in ubi9/go-toolset ubi9/ubi-minimal; do
+            LATEST_SHA=$(skopeo inspect --raw docker://registry.access.redhat.com/$image:latest | jq -r '.manifests[] | select(.platform.architecture == "amd64") .digest')
+            CURRENT_SHA=$(grep "registry.access.redhat.com/$image@sha256:" Dockerfile*  | awk '{print $2}' | awk -F '@' '{print $2; exit}')
+              if [ "$CURRENT_SHA" != "$LATEST_SHA" ]; then
+                grep -rl "registry.access.redhat.com/$image@$CURRENT_SHA" . | xargs sed -i "s#registry.access.redhat.com/$image@$CURRENT_SHA#registry.access.redhat.com/$image@$LATEST_SHA#g"
+                git add .
+                git commit -m ":robot: Update $image image ref in Dockerfiles from ${CURRENT_SHA:7:11} to ${LATEST_SHA:7:11}"
+                echo "IMAGE_UPDATED=true" >> $GITHUB_ENV
+              fi
+          done
+
+      - name: Push changes
+        if: ${{ env.IMAGE_UPDATED == 'true' }}
+        run: |
+          git push -f origin Update-image-version
+          git checkout ${{ inputs.mainRef }}
+          COMMIT_SHA=$(git log Update-image-version -n 2 --pretty=format:"%H" | tr '\n' ' ')
+          IFS=',' read -ra MID_STR <<< "$MIDSTREAM_REF"
+          for midstream in "${MID_STR[@]}"; do
+            git checkout -B Update-image-version-$midstream origin/$midstream
+            git cherry-pick $COMMIT_SHA
+            git push -f origin Update-image-version-$midstream
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.token }}
+
+      - name: Check for existing pull request
+        if: ${{ env.IMAGE_UPDATED == 'true' }}
+        run: |
+          openPRs="$(gh pr list --state open -H Update-image-version --json number | jq -r '.[].number' | wc -l)"
+          echo 'NUM_OPEN_PRS='$openPRs >> $GITHUB_ENV
+        env:
+          GITHUB_TOKEN: ${{ secrets.token }}
+
+      - name: Create pull request
+        if: ${{ env.NUM_OPEN_PRS == 0 && env.IMAGE_UPDATED == 'true' }}
+        run: |
+          gh pr create --base ${{ inputs.mainRef }} --head Update-image-version --title ":robot: Update image version in Dockerfiles" --body "This is an automated PR, which updates the Dockerfile versions to their latest versions."
+          IFS=',' read -ra MID_STR <<< "$MIDSTREAM_REF"
+          for midstream in "${MID_STR[@]}"; do
+              gh pr create --base $midstream --head Update-image-version-$midstream --title ":robot: [$midstream] Update image version in Dockerfiles" --body "This is an automated PR, which updates the Dockerfile versions to their latest versions."
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.token }}
