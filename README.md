@@ -5,18 +5,20 @@ This repository hosts all reusable GitHub actions utilized by the 'securesign' o
 The current actions included in this repository include:
 
 ### Check image version
-This GitHub Action utilizes skopeo to verify that the images ubi9/go-toolset and ubi9/ubi-minimal are always using the most up-to-date SHA. If they aren't, the action will create a PR to update them in both the main and midstream branches.
+This GitHub Action utilizes skopeo to verify that the images ubi9/go-toolset and ubi9/ubi-minimal are always using the most up-to-date SHA. If they aren't, the action will create a PR to update them in any of the branches specified in the matrix.
 
 #### Usage
 
 ```    
-jobs:
-  check-image-version:
-    uses: securesign/actions/.github/workflows/check-image-version.yaml@main
-    with:
-      mainRef: main  #<--- Required either main or master
-    secrets:
-      token: ${{ secrets.GITHUB_TOKEN }} #<--- Required 
+check-image-version:
+  uses: securesign/actions/.github/workflows/check-image-version.yaml@main
+  strategy:
+    matrix:
+      branch: [main, midstream-vx-y-z, ....]
+  with:
+    branch: ${{ matrix.branch }}
+  secrets:
+    token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 In order for the action to work correctly there are two settings that need to be changed for the repo.
