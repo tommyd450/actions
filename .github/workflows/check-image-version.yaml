@@ -43,8 +43,10 @@ jobs:
                   echo "here"
               fi
               echo $TAG
-              LATEST_SHA=$(skopeo inspect --raw docker://$image:$TAG | jq -r '.manifests[] | select(.platform.architecture == "amd64") .digest')
+              LATEST_SHA=$(skopeo inspect --raw docker://$image| jq -r '.manifests[] | select(.platform.architecture == "amd64") .digest')
               CURRENT_SHA=$(grep "$image@sha256:" Dockerfile*  | awk '{print $2}' | awk -F '@' '{print $2; exit}')
+              echo $CURRENT_SHA
+              echo $LATEST_SHA
               if [ "$CURRENT_SHA" != "" ] && [ "$CURRENT_SHA" != "$LATEST_SHA" ]; then
                   grep -rl "$image@$CURRENT_SHA" . | xargs sed -i "s#$image@$CURRENT_SHA#$image@$LATEST_SHA#g"
                   git add .
