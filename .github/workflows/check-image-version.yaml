@@ -41,6 +41,7 @@ jobs:
               then
                   TAG="rhel_9_1.21"
               fi
+              echo $TAG
               LATEST_SHA=$(skopeo inspect --raw "docker://$image:$TAG" | jq -r '.manifests[] | select(.platform.architecture == "amd64") .digest')
               CURRENT_SHA=$(grep "$image@sha256:" Dockerfile*  | awk '{print $2}' | awk -F '@' '{print $2; exit}')
               if [ "$CURRENT_SHA" != "" ] && [ "$CURRENT_SHA" != "$LATEST_SHA" ]; then
