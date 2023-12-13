@@ -37,7 +37,7 @@ jobs:
           IMAGES=("registry.access.redhat.com/ubi9/go-toolset" "registry.access.redhat.com/ubi9/ubi-minimal" "brew.registry.redhat.io/rh-osbs/openshift-golang-builder")
           TAG="latest"
           for image in "${IMAGES[@]}"; do
-              if [ "$image"=="brew.registry.redhat.io/rh-osbs/openshift-golang-builder"]
+              if [ "$image" == "brew.registry.redhat.io/rh-osbs/openshift-golang-builder" ] 
               then
                   TAG="rhel_9_1.21"
                   echo "here"
