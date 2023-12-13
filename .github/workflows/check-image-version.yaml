@@ -38,6 +38,7 @@ jobs:
           TAG="latest"
           for image in "${IMAGES[@]}"; do
               if [image == "brew.registry.redhat.io/rh-osbs/openshift-golang-builder:rhel_9_1.21"]
+              then
                   TAG="rhel_9_1.21"
               fi
               LATEST_SHA=$(skopeo inspect --raw docker://$image:$TAG | jq -r '.manifests[] | select(.platform.architecture == "amd64") .digest')
