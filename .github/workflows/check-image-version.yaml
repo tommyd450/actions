@@ -29,6 +29,9 @@ jobs:
 
       - name: Log in to image registry's
         run: |
+          if [ ${{ secrets.REDHAT_REGISTRY_USERNAME }} != "" ]
+            echo "yup"
+          fi
           skopeo login brew.registry.redhat.io -u "${{ secrets.REDHAT_REGISTRY_USERNAME }}" -p "${{ secrets.REDHAT_REGISTRY_PASSWORD }}"
 
 
