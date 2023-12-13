@@ -25,9 +25,13 @@ jobs:
 
       - name: Check and update images
         run: |
-          IMAGES=("registry.access.redhat.com/ubi9/go-toolset" "registry.access.redhat.com/ubi9/ubi-minimal" "brew.registry.redhat.io/rh-osbs/openshift-golang-builder")
+          IMAGES=("registry.access.redhat.com/ubi9/go-toolset" "registry.access.redhat.com/ubi9/ubi-minimal" "brew.registry.redhat.io/rh-osbs/openshift-golang-builder:rhel_9_1.21")
+          TAG="latest"
           for image in "${IMAGES[@]}"; do
-              LATEST_SHA=$(skopeo inspect --raw docker://$image:latest | jq -r '.manifests[] | select(.platform.architecture == "amd64") .digest')
+              if [image == "brew.registry.redhat.io/rh-osbs/openshift-golang-builder:rhel_9_1.21"]
+                  TAG="rhel_9_1.21"
+              fi
+              LATEST_SHA=$(skopeo inspect --raw docker://$image:$TAG | jq -r '.manifests[] | select(.platform.architecture == "amd64") .digest')
               CURRENT_SHA=$(grep "$image@sha256:" Dockerfile*  | awk '{print $2}' | awk -F '@' '{print $2; exit}')
               if [ "$CURRENT_SHA" != "" ] && [ "$CURRENT_SHA" != "$LATEST_SHA" ]; then
                   grep -rl "$image@$CURRENT_SHA" . | xargs sed -i "s#$image@$CURRENT_SHA#$image@$LATEST_SHA#g"
