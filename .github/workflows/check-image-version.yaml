@@ -9,6 +9,10 @@ on:
     secrets:
       token:
         required: true
+      REDHAT_REGISTRY_USERNAME:
+        required: true
+      REDHAT_REGISTRY_PASSWORD:
+        required: true
 
 jobs:
   check-image-version:
