@@ -25,8 +25,7 @@ jobs:
 
       - name: Check and update images
         run: |
-          IMAGES=("registry.access.redhat.com/ubi9/go-toolset" "registry.access.redhat.com/ubi9/ubi-minimal" "brew.registry.redhat.io/rh-osbs/openshift-golang-builder:rhel_9_1.21")
-
+          IMAGES=("registry.access.redhat.com/ubi9/go-toolset" "registry.access.redhat.com/ubi9/ubi-minimal" "brew.registry.redhat.io/rh-osbs/openshift-golang-builder")
           for image in "${IMAGES[@]}"; do
               LATEST_SHA=$(skopeo inspect --raw docker://$image:latest | jq -r '.manifests[] | select(.platform.architecture == "amd64") .digest')
               CURRENT_SHA=$(grep "$image@sha256:" Dockerfile*  | awk '{print $2}' | awk -F '@' '{print $2; exit}')
