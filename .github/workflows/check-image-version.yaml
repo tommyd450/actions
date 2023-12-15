@@ -19,7 +19,7 @@ jobs:
         run: |
           git config --global user.email "${GITHUB_ACTOR}@users.noreply.github.com"
           git config --global user.name "${GITHUB_ACTOR}"
-          
+
           git fetch origin
           git checkout -B Update-image-version-${{ inputs.branch }} origin/${{ inputs.branch }}
 
@@ -29,7 +29,8 @@ jobs:
 
           for image in "${IMAGES[@]}"; do
               LATEST_SHA=$(skopeo inspect --raw docker://$image:latest | jq -r '.manifests[] | select(.platform.architecture == "amd64") .digest')
-              CURRENT_SHA=$(grep "$image@sha256:" Dockerfile*  | awk '{print $2}' | awk -F '@' '{print $2; exit}')
+              DOCKERFILE_PATH=$( if [ "${{ inputs.branch }}" == "main" ]; then echo "redhat/overlays/Dockerfile*"; else echo "Dockerfile*"; fi )
+              CURRENT_SHA=$(grep "$image@sha256:" $DOCKERFILE_PATH  | awk '{print $2}' | awk -F '@' '{print $2; exit}')
               if [ "$CURRENT_SHA" != "" ] && [ "$CURRENT_SHA" != "$LATEST_SHA" ]; then
                   grep -rl "$image@$CURRENT_SHA" . | xargs sed -i "s#$image@$CURRENT_SHA#$image@$LATEST_SHA#g"
                   git add .
