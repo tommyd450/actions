@@ -9,10 +9,17 @@ on:
     secrets:
       token:
         required: true
+      registry_redhat_io_username:
+        required: false
+      registry_redhat_io_password:
+        required: false
 
 jobs:
   check-image-version:
     runs-on: ubuntu-latest
+    env:
+      REDHAT_IO_USERNAME: ${{ secrets.registry_redhat_io_username }}
+      REDHAT_IO_PASSWORD: ${{ secrets.registry_redhat_io_password }}
     steps:
       - uses: actions/checkout@v2
       - name: Configure git
@@ -23,12 +30,21 @@ jobs:
           git fetch origin
           git checkout -B Update-image-version-${{ inputs.branch }} origin/${{ inputs.branch }}
 
+      - name: Login to registry.redhat.io
+        if: env.REDHAT_IO_USERNAME && env.REDHAT_IO_PASSWORD
+        run: |
+          skopeo login -u='${{ env.REDHAT_IO_USERNAME }}' -p='${{ env.REDHAT_IO_PASSWORD }}' registry.redhat.io
+
       - name: Check and update images
         run: |
-          IMAGES=("registry.access.redhat.com/ubi9/go-toolset" "registry.access.redhat.com/ubi9/ubi-minimal" "registry.redhat.io/rhel9/redis-6")
-
+          IMAGES=("registry.access.redhat.com/ubi9/go-toolset" "registry.access.redhat.com/ubi9/ubi-minimal" "registry.access.redhat.com/ubi9-minimal" "registry.redhat.io/rhel9/redis-6")   
           for image in "${IMAGES[@]}"; do
               LATEST_SHA=$(skopeo inspect --raw docker://$image:latest | jq -r '.manifests[] | select(.platform.architecture == "amd64") .digest')
+              if [ -z "$LATEST_SHA" ]; then
+                  echo "ERROR: Latest SHA for $image is empty. Failing the job."
+                  exit 1
+              fi
+      
               DOCKERFILE_PATH=$( if [ "${{ inputs.branch }}" == "main" ]; then echo "redhat/overlays/Dockerfile*"; else echo "Dockerfile*"; fi )
               CURRENT_SHA=$(grep "$image@sha256:" $DOCKERFILE_PATH  | awk '{print $2}' | awk -F '@' '{print $2; exit}')
               if [ "$CURRENT_SHA" != "" ] && [ "$CURRENT_SHA" != "$LATEST_SHA" ]; then
