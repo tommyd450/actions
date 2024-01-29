@@ -31,7 +31,7 @@ jobs:
           git checkout -B Update-image-version-${{ inputs.branch }} origin/${{ inputs.branch }}
 
       - name: Login to registry.redhat.io
-        if: env.REDHAT_IO_USERNAME && env.REDHAT_IO_PASSWORD
+        if: env.REDHAT_IO_USERNAME != '' && env.REDHAT_IO_PASSWORD != ''
         run: |
           skopeo login -u='${{ env.REDHAT_IO_USERNAME }}' -p='${{ env.REDHAT_IO_PASSWORD }}' registry.redhat.io
 
