@@ -39,6 +39,12 @@ jobs:
         run: |
           IMAGES=("registry.access.redhat.com/ubi9/go-toolset" "registry.access.redhat.com/ubi9/ubi-minimal" "registry.access.redhat.com/ubi9-minimal" "registry.redhat.io/rhel9/redis-6")   
           for image in "${IMAGES[@]}"; do
+          
+              if [[ $image == registry.redhat.io/* ]] && ([ -z "$REDHAT_IO_USERNAME" ] || [ -z "$REDHAT_IO_PASSWORD" ]); then
+                  echo "Skipping Skopeo inspection for $image due to missing Red Hat registry credentials."
+                  continue
+              fi
+
               LATEST_SHA=$(skopeo inspect --raw docker://$image:latest | jq -r '.manifests[] | select(.platform.architecture == "amd64") .digest')
               if [ -z "$LATEST_SHA" ]; then
                   echo "ERROR: Latest SHA for $image is empty. Failing the job."
