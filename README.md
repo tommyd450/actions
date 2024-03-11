@@ -5,7 +5,7 @@ This repository hosts all reusable GitHub actions utilized by the 'securesign' o
 The current actions included in this repository include:
 
 ### Check image version
-This GitHub Action utilizes skopeo to verify that the images ubi9/go-toolset and ubi9/ubi-minimal are always using the most up-to-date SHA. If they aren't, the action will create a PR to update them in any of the branches specified in the matrix.
+This GitHub Action utilizes skopeo to verify that the images specified in the inputs, are always using the most up-to-date SHA. If they aren't, the action will create a PR to update them in any of the branches specified in the matrix.
 
 #### Usage
 
@@ -15,10 +15,13 @@ check-image-version:
   strategy:
     matrix:
       branch: [main, midstream-vx-y-z, ....]
-  with:
-    branch: ${{ matrix.branch }}
-  secrets:
-    token: ${{ secrets.GITHUB_TOKEN }}
+    with:
+      branch: ${{ matrix.branch }}
+      images: '["img1","img2","img3","img4"]'
+    secrets:
+      token: ${{ secrets.GITHUB_TOKEN }}
+      registry_redhat_io_username: ${{ secrets.REGISTRY_REDHAT_IO_USERNAME }}
+      registry_redhat_io_password: ${{ secrets.REGISTRY_REDHAT_IO_PASSWORD }}
 ```
 
 In order for the action to work correctly there are two settings that need to be changed for the repo.
