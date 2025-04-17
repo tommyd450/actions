@@ -19,7 +19,7 @@
       },
       {
         "description": "Group all Python module updates together",
-        "matchManager": ["pypi"],
+        "matchManagers": ["pip_requirements"],
         "groupName": "Python Dependencies",
         "groupSlug": "python-deps"
       },
