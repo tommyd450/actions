@@ -1,0 +1,54 @@
+name: Trigger konflux build
+
+on:
+  workflow_call:
+    inputs:
+      branch:
+        required: true
+        type: string
+        description: 'Branch the action will be run against'
+    secrets:
+      token:
+        required: true
+
+jobs:
+  trigger-konflux-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Configure git
+        run: |
+          git config --global user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+          git config --global user.name "${GITHUB_ACTOR}"
+
+          git fetch origin
+          git checkout -B Trigger-Konflux-Pipelines${{ inputs.branch }} origin/${{ inputs.branch }}
+
+      - name: Create Timestamp File
+        run: |
+          day=$(date +'%Y-%m-%d')
+          current_time=$(date +'%H-%M-%S')
+          echo "${day},${current_time}" > trigger-konflux-builds.txt
+
+          git add .
+          git commit -m ":robot: Updated timestamp file to ${day},${current_time}."
+
+      - name: Push changes
+        run: |
+          git push -f origin Trigger-Konflux-Pipelines${{ inputs.branch }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.token }}
+
+      - name: Check for existing pull request
+        run: |
+          openPRs="$(gh pr list --state open -H Trigger-Konflux-Pipelines${{ inputs.branch }} --json number | jq -r '.[].number' | wc -l)"
+          echo 'NUM_OPEN_PRS='$openPRs >> $GITHUB_ENV
+        env:
+          GITHUB_TOKEN: ${{ secrets.token }}
+
+      - name: Create pull request
+        if: ${{ env.NUM_OPEN_PRS == 0 }}
+        run: |
+          gh pr create --base ${{ inputs.branch }} --head Trigger-Konflux-Pipelines${{ inputs.branch }} --title ":robot: [${{ inputs.branch }}] Trigger-Konflux-Pipelines" --body "This is an automated PR, that triggers the konflux build pipelines."
+        env:
+          GITHUB_TOKEN: ${{ secrets.token }}

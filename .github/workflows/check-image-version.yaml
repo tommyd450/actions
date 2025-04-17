@@ -6,44 +6,59 @@ on:
       branch:
         required: true
         type: string
+        description: 'Branch the action will be run against'
+      images:
+        required: true
+        type: string
+        description: 'JSON array of image names to check, e.g., ["img1","img2","img3","img4"] '
     secrets:
       token:
         required: true
-      REDHAT_REGISTRY_USERNAME:
-        required: true
-      REDHAT_REGISTRY_PASSWORD:
-        required: true
+      registry_redhat_io_username:
+        required: false
+      registry_redhat_io_password:
+        required: false
 
 jobs:
   check-image-version:
     runs-on: ubuntu-latest
+    env:
+      REDHAT_IO_USERNAME: ${{ secrets.registry_redhat_io_username }}
+      REDHAT_IO_PASSWORD: ${{ secrets.registry_redhat_io_password }}
     steps:
       - uses: actions/checkout@v2
       - name: Configure git
         run: |
           git config --global user.email "${GITHUB_ACTOR}@users.noreply.github.com"
           git config --global user.name "${GITHUB_ACTOR}"
-          
+
           git fetch origin
           git checkout -B Update-image-version-${{ inputs.branch }} origin/${{ inputs.branch }}
 
-      - name: Log in to image registry's
+      - name: Login to registry.redhat.io
+        if: env.REDHAT_IO_USERNAME != '' && env.REDHAT_IO_PASSWORD != ''
         run: |
-          skopeo login brew.registry.redhat.io -u ${{ secrets.REDHAT_REGISTRY_USERNAME }} -p ${{ secrets.REDHAT_REGISTRY_PASSWORD }}
-
+          skopeo login -u='${{ env.REDHAT_IO_USERNAME }}' -p='${{ env.REDHAT_IO_PASSWORD }}' registry.redhat.io
 
       - name: Check and update images
         run: |
-          IMAGES=("registry.access.redhat.com/ubi9/go-toolset" "registry.access.redhat.com/ubi9/ubi-minimal" "brew.registry.redhat.io/rh-osbs/openshift-golang-builder")
-          TAG="latest"
+          IMAGES_JSON='${{ inputs.images }}'
+          IMAGES=($(echo $IMAGES_JSON | jq -r '.[]'))
           for image in "${IMAGES[@]}"; do
-              if [ "$image" == "brew.registry.redhat.io/rh-osbs/openshift-golang-builder" ] 
-              then
-                  TAG="rhel_9_1.21"
+          
+              if [[ $image == registry.redhat.io/* ]] && ([ -z "$REDHAT_IO_USERNAME" ] || [ -z "$REDHAT_IO_PASSWORD" ]); then
+                  echo "error: registry.redhat.io image specifed, but no credenitals passed."
+                  exit 1
               fi
-              echo $TAG
-              LATEST_SHA=$(skopeo inspect --raw docker://$image| jq -r '.manifests[] | select(.platform.architecture == "amd64") .digest')
-              CURRENT_SHA=$(grep "$image@sha256:" Dockerfile*  | awk '{print $2}' | awk -F '@' '{print $2; exit}')
+
+              LATEST_SHA=$(skopeo inspect --raw docker://$image:latest | jq -r '.manifests[] | select(.platform.architecture == "amd64") .digest')
+              if [ -z "$LATEST_SHA" ]; then
+                  echo "error: latest SHA for $image is empty."
+                  exit 1
+              fi
+
+              CURRENT_SHA=$(grep "$image@sha256:" Dockerfile* | awk '{print $2}' | awk -F '@' '{print $2; exit}')
+
               if [ "$CURRENT_SHA" != "" ] && [ "$CURRENT_SHA" != "$LATEST_SHA" ]; then
                   grep -rl "$image@$CURRENT_SHA" . | xargs sed -i "s#$image@$CURRENT_SHA#$image@$LATEST_SHA#g"
                   git add .
