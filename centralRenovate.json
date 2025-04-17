@@ -4,6 +4,7 @@
       "github>konflux-ci/mintmaker//config/renovate/renovate.json"
     ],
     "labels": ["dependencies"],
+    "enabledManagers": ["dockerfile", "npm","pip_requirements","gomod","cargo"],
     "packageRules": [
       {
         "description": "Group all Go module updates together",
