@@ -30,6 +30,12 @@
         "groupSlug": "rust-deps"
       },
       {
+        "description": "Group all NPM module updates together",
+        "matchManagers": ["npm"],
+        "groupName": "NPM Dependencies",
+        "groupSlug": "npm-deps"
+      },
+      {
         "matchDatasources": [
           "golang-version"
         ],
